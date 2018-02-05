@@ -168,6 +168,12 @@ class ChatBot extends Component {
     return steps;
   }
 
+  enableUserInput() {
+    this.setState({ disabled: false }, () => {
+      this.input.focus();
+    });
+  }
+
   triggerNextStep(data) {
     const {
       defaultUserSettings,
@@ -188,9 +194,11 @@ class ChatBot extends Component {
     if (isEnd) {
       this.handleEnd();
     } else if (currentStep.options && data) {
-      const option = currentStep.options.filter(o => o.value === data.value)[0];
-      const trigger = this.getTriggeredStep(option.trigger, currentStep.value);
+      const option = currentStep.options.filter(o => o.value === data.value)[0] || data;
+      const trigger = currentStep.trigger ||
+        this.getTriggeredStep(option.trigger, currentStep.value);
       delete currentStep.options;
+      delete currentStep.inputTrigger;
 
       // replace choose option for user message
       currentStep = Object.assign(
@@ -255,6 +263,10 @@ class ChatBot extends Component {
           this.setState({ renderedSteps, previousSteps });
         }
       });
+    }
+
+    if (currentStep.inputTrigger) {
+      this.enableUserInput();
     }
 
     const { cache, cacheName } = this.props;
@@ -333,12 +345,36 @@ class ChatBot extends Component {
 
   handleKeyPress(event) {
     if (event.key === 'Enter') {
-      this.submitUserMessage();
+      this.handleUserInput();
     }
   }
 
   handleSubmitButton() {
-    this.submitUserMessage();
+    this.handleUserInput();
+  }
+
+  handleUserInput() {
+    const { currentStep } = this.state;
+    if (currentStep.inputTrigger) {
+      this.handleOptionsInput();
+    } else {
+      this.submitUserMessage();
+    }
+  }
+
+  handleOptionsInput() {
+    const { currentStep, inputValue } = this.state;
+    this.triggerNextStep(
+      {
+        trigger: currentStep.inputTrigger,
+        value: inputValue,
+        label: inputValue,
+      },
+    );
+    this.setState({
+      disabled: true,
+      inputValue: '',
+    });
   }
 
   submitUserMessage() {
